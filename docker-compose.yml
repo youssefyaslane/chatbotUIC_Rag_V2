@@ -1,0 +1,29 @@
+services:
+  ingest:
+    build: .
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
+      - ./vecstore:/app/vecstore
+    command: ["python", "rag/ingest.py"]
+
+  uic_rag:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
+      - ./vecstore:/app/vecstore
+    depends_on:
+      ingest:
+        condition: service_completed_successfully
+    command: ["gunicorn", "-w", "2", "-b", "0.0.0.0:8000", "app_rag:app"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
